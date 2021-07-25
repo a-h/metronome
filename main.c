@@ -277,6 +277,10 @@ int main() {
     // Setup the onboard LED.
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+    // Power the solenoid on GP15 (physical 20).
+    int SOLENOID_GPIO = 15;
+    gpio_init(SOLENOID_GPIO);
+    gpio_set_dir(SOLENOID_GPIO, GPIO_OUT);
     
     // Set up state for the metronome.
     int bpm = 60;
@@ -294,8 +298,8 @@ int main() {
         }
         if(encoder_state.counter != lastCounter) {
             bpm += (encoder_state.counter - lastCounter);
-            if(bpm > 999) {
-                bpm = 999;
+            if(bpm > 300) {
+                bpm = 300;
             }
             if(bpm < 1) {
                 bpm = 1;
@@ -314,11 +318,13 @@ int main() {
             playing = true;
             time_last_sounded = now;
             gpio_put(PICO_DEFAULT_LED_PIN, 1);
+            gpio_put(SOLENOID_GPIO, 1);
         }
         // Don't forget to turn off the pins.
         if(playing && now > (time_last_sounded + play_duration)) {
             playing = false;
             gpio_put(PICO_DEFAULT_LED_PIN, 0);
+            gpio_put(SOLENOID_GPIO, 0);
         }
     }
     return 0;
