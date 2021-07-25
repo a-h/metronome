@@ -1,9 +1,3 @@
-/**
- * Copyright (c) 2021 Raspberry Pi (Trading) Ltd.
- *
- * SPDX-License-Identifier: BSD-3-Clause
- */
-
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "pico/binary_info.h"
@@ -162,6 +156,76 @@ void clear_oled() {
     render(buf, &frame_area);
 }
 
+// Code for the rotary encoder.
+// Adapted from https://lastminuteengineers.com/rotary-encoder-arduino-tutorial/
+struct rotary_encoder_state {
+    // Pins.
+    uint clk;
+    uint dt;
+    uint sw;
+
+    // Data.
+    int counter;
+    int currentStateCLK;
+    int lastStateCLK;
+    int currentDir;
+    unsigned long lastButtonPress;
+};
+
+struct rotary_encoder_state rotary_init(uint clk, uint dt, uint sw) {
+    gpio_set_function(clk, GPIO_IN);
+    gpio_set_function(dt, GPIO_IN);
+    gpio_pull_up(sw);
+    struct rotary_encoder_state state = {
+        .clk = clk,
+        .dt = dt,
+        .sw = sw,
+        .lastStateCLK = gpio_get(clk),
+    };
+    return state;
+}
+
+bool rotary_update(struct rotary_encoder_state* state) {
+    // Read the current state of CLK.
+    state->currentStateCLK = gpio_get(state->clk);
+
+    // If last and current state of CLK are different, then a pulse occurred.
+    // React to only 1 state change to avoid double count.
+    if (state->currentStateCLK != state->lastStateCLK && state->currentStateCLK == 1){
+            // If the DT state is different than the CLK state then
+            // the encoder is rotating CW so increment.
+            if (gpio_get(state->dt) != state->currentStateCLK) {
+                    state->counter ++;
+                    state->currentDir = +1;
+            } else {
+                    // Encoder is rotating CCW so decrement.
+                    state->counter --;
+                    state->currentDir = -1;
+            }
+    }
+
+    // Remember last CLK state.
+    state->lastStateCLK = state->currentStateCLK;
+
+    // Read the button state.
+    bool pressed = false;
+
+    // If we detect LOW signal, button is pressed.
+    if (gpio_get(state->sw) == 0) {
+            //if 50ms have passed since last LOW pulse, it means that the
+            //button has been pressed, released and pressed again
+            long now = time_us_64();
+            pressed = (now - state->lastButtonPress) > 50000;
+
+            // Remember last button press event.
+            state->lastButtonPress = now;
+    }
+
+    // Put in a slight delay to help debounce the reading
+    sleep_ms(1);
+    return pressed;
+}
+
 int main() {
     stdio_init_all();
 
@@ -180,9 +244,24 @@ int main() {
     for(int i = 0; i < 10; i ++) {
         int start = (i * FONT_WIDTH) + i;
         int end = start + FONT_WIDTH - 1;
-        struct render_area font_tile_area = { start_col: start, end_col : end, start_page : 0, end_page : 0 };
+        struct render_area font_tile_area = { .start_col = start, .end_col = end, .start_page = 0, .end_page = 0 };
         calc_render_area_buflen(&font_tile_area);
         render(numbers[i], &font_tile_area);
+    }
+
+    // Initiate the rotary encoder.
+    struct rotary_encoder_state encoder_state = rotary_init(13, 12, 11); // GP13, GP12, GP11. Physical 17, 16, 15.
+    
+    long lastCounter;
+    while(true) {
+        bool pressed = rotary_update(&encoder_state);
+        if(pressed) {
+             printf("Pressed!\n");
+        }
+        if(encoder_state.counter != lastCounter) {
+             printf("Counter updated: %d\n", encoder_state.counter);
+        }
+        lastCounter = encoder_state.counter;
     }
 
     return 0;
