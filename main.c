@@ -145,7 +145,12 @@ void render(uint8_t buf[], struct render_area* area) {
 
 void clear_oled() {
     // initialize render area for entire frame (128 pixels by 4 pages)
-    struct render_area frame_area = { start_col: 0, end_col : OLED_WIDTH - 1, start_page : 0, end_page : OLED_NUM_PAGES - 1 };
+    struct render_area frame_area = {
+        .start_col = 0,
+        .end_col = OLED_WIDTH - 1,
+        .start_page = 0,
+        .end_page = OLED_NUM_PAGES - 1,
+    };
     calc_render_area_buflen(&frame_area);
 
     // zero the entire display
