@@ -257,8 +257,9 @@ void print_bpm(int bpm) {
 int main() {
     stdio_init_all();
 
+    // Configure the OLED screen.
     // I2C is "open drain", pull ups to keep signal high when no data is being
-    // sent
+    // sent.
     i2c_init(i2c_default, 400 * 1000);
     gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
     gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
@@ -270,30 +271,55 @@ int main() {
 
     // Initiate the rotary encoder.
     struct rotary_encoder_state encoder_state = rotary_init(13, 12, 11); // GP13, GP12, GP11. Physical 17, 16, 15.
-    
-    int bpm = 60;
-
-    // Initialise counter values.
     rotary_update(&encoder_state);
     int lastCounter = encoder_state.counter - 1; // Trigger the first screen refresh.
 
+    // Setup the onboard LED.
+    gpio_init(PICO_DEFAULT_LED_PIN);
+    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+    
+    // Set up state for the metronome.
+    int bpm = 60;
+    bool metronome_on = true;
+    long time_last_sounded = time_us_64();
+    long time_us_per_beat = 60000000 / bpm; // 6*10^7 us = 1 minute in microseconds.
+    long playing = false;
+    long play_duration = 50000; // 50ms.
+
     while(true) {
+        // Read the encoder.
         bool pressed = rotary_update(&encoder_state);
         if(pressed) {
-             printf("Pressed!\n");
+            metronome_on = !metronome_on;
         }
         if(encoder_state.counter != lastCounter) {
-             bpm += (encoder_state.counter - lastCounter);
-             if(bpm > 999) {
-                 bpm = 999;
-             }
-             if(bpm < 1) {
-                 bpm = 1;
-             }
-             printf("BPM updated: %d %d\n", bpm, encoder_state.counter);
-             print_bpm(bpm);
+            bpm += (encoder_state.counter - lastCounter);
+            if(bpm > 999) {
+                bpm = 999;
+            }
+            if(bpm < 1) {
+                bpm = 1;
+            }
+            // recalculate us per beat.
+            time_us_per_beat = 60000000 / bpm;
+            /*printf("BPM updated: %d %d\n", bpm, encoder_state.counter);*/
+            print_bpm(bpm);
         }
         lastCounter = encoder_state.counter;
+
+        // Play the sound and flash the light.
+        long now = time_us_64();
+        if (metronome_on && (now - time_last_sounded) >= time_us_per_beat) {
+            //TODO: There's probably a smart way to do this with the SDK using the background processing.
+            playing = true;
+            time_last_sounded = now;
+            gpio_put(PICO_DEFAULT_LED_PIN, 1);
+        }
+        // Don't forget to turn off the pins.
+        if(playing && now > (time_last_sounded + play_duration)) {
+            playing = false;
+            gpio_put(PICO_DEFAULT_LED_PIN, 0);
+        }
     }
     return 0;
 }
