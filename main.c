@@ -226,6 +226,29 @@ bool rotary_update(struct rotary_encoder_state* state) {
     return pressed;
 }
 
+void print_bpm(int bpm) {
+    int place_value = bpm;
+    for(int i = 3; i > 0; i --) {
+        int start = (i * FONT_WIDTH) + i;
+        int end = start + FONT_WIDTH - 1;
+        struct render_area font_tile_area = {
+            .start_col = start,
+            .end_col = end,
+            .start_page = 0,
+            .end_page = 0,
+        };
+        calc_render_area_buflen(&font_tile_area);
+        int digit = place_value % 10;
+        place_value /= 10;
+        // Skip leading digits.
+        if((i < 3 && bpm < 10) || (i < 2 && bpm < 100)) {
+            render(space, &font_tile_area);
+        } else {
+            render(numbers[digit], &font_tile_area);
+        }
+    }
+}
+
 int main() {
     stdio_init_all();
 
@@ -240,29 +263,32 @@ int main() {
     oled_init();
     clear_oled();
 
-    // Draw numbers.
-    for(int i = 0; i < 10; i ++) {
-        int start = (i * FONT_WIDTH) + i;
-        int end = start + FONT_WIDTH - 1;
-        struct render_area font_tile_area = { .start_col = start, .end_col = end, .start_page = 0, .end_page = 0 };
-        calc_render_area_buflen(&font_tile_area);
-        render(numbers[i], &font_tile_area);
-    }
-
     // Initiate the rotary encoder.
     struct rotary_encoder_state encoder_state = rotary_init(13, 12, 11); // GP13, GP12, GP11. Physical 17, 16, 15.
     
-    long lastCounter;
+    int bpm = 60;
+
+    // Initialise counter values.
+    rotary_update(&encoder_state);
+    int lastCounter = encoder_state.counter - 1; // Trigger the first screen refresh.
+
     while(true) {
         bool pressed = rotary_update(&encoder_state);
         if(pressed) {
              printf("Pressed!\n");
         }
         if(encoder_state.counter != lastCounter) {
-             printf("Counter updated: %d\n", encoder_state.counter);
+             bpm += (encoder_state.counter - lastCounter);
+             if(bpm > 999) {
+                 bpm = 999;
+             }
+             if(bpm < 1) {
+                 bpm = 1;
+             }
+             printf("BPM updated: %d %d\n", bpm, encoder_state.counter);
+             print_bpm(bpm);
         }
         lastCounter = encoder_state.counter;
     }
-
     return 0;
 }
