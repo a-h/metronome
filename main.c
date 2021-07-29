@@ -270,15 +270,15 @@ int main() {
     clear_oled();
 
     // Initiate the rotary encoder.
-    struct rotary_encoder_state encoder_state = rotary_init(13, 12, 11); // GP13, GP12, GP11. Physical 17, 16, 15.
+    struct rotary_encoder_state encoder_state = rotary_init(13, 14, 15); // GP13, GP13, GP15. Physical 17, 19, 20.
     rotary_update(&encoder_state);
     int lastCounter = encoder_state.counter - 1; // Trigger the first screen refresh.
 
     // Setup the onboard LED.
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
-    // Power the solenoid on GP15 (physical 20).
-    int SOLENOID_GPIO = 15;
+    // Power the solenoid on GP17 (physical 22).
+    int SOLENOID_GPIO = 17;
     gpio_init(SOLENOID_GPIO);
     gpio_set_dir(SOLENOID_GPIO, GPIO_OUT);
     
