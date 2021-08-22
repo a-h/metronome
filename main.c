@@ -56,7 +56,7 @@ void oled_send_cmd(uint8_t cmd) {
 
     // Co = 1, D/C = 0 => the driver expects a command
     uint8_t buf[2] = { 0x80, cmd };
-    i2c_write_blocking(i2c_default, (OLED_ADDR & OLED_WRITE_MODE), buf, 2, false);
+    i2c_write_blocking(PICO_DEFAULT_I2C, (OLED_ADDR & OLED_WRITE_MODE), buf, 2, false);
 }
 
 void oled_send_buf(uint8_t buf[], int buflen) {
@@ -75,7 +75,7 @@ void oled_send_buf(uint8_t buf[], int buflen) {
     }
     // Co = 0, D/C = 1 => the driver expects data to be written to RAM
     temp_buf[0] = 0x40;
-    i2c_write_blocking(i2c_default, (OLED_ADDR & OLED_WRITE_MODE), temp_buf, buflen + 1, false);
+    i2c_write_blocking(PICO_DEFAULT_I2C, (OLED_ADDR & OLED_WRITE_MODE), temp_buf, buflen + 1, false);
 }
 
 void oled_init() {
@@ -260,7 +260,7 @@ int main() {
     // Configure the OLED screen.
     // I2C is "open drain", pull ups to keep signal high when no data is being
     // sent.
-    i2c_init(i2c_default, 400 * 1000);
+    i2c_init(PICO_DEFAULT_I2C, 400 * 1000);
     gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
     gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
     gpio_pull_up(PICO_DEFAULT_I2C_SDA_PIN);
